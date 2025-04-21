@@ -8,7 +8,7 @@ from api.frame.frame_routes import router as frame_router
 
 app = FastAPI()
 
-app.include_router(frame_router, prefix="/api/save/frame", tags=["진단용 이미지 저장"])
+app.include_router(frame_router, tags=["진단용 이미지 저장"])
 
 def main():
     import uvicorn
