@@ -8,8 +8,7 @@ from .TimedQueue import TimedQueue
 import aiohttp
 import asyncio
 import base64
-import queue
-from typing import Dict, Tuple
+from typing import Dict
 from PIL import Image
 from io import BytesIO
 router = APIRouter()
@@ -36,7 +35,7 @@ async def save_frame(data: FrameRequest):
     try:
         await uid_queues[device_uid].put((frame_idx, image))
         return JSONResponse(status_code=200, content={"status": 200, "success": True})
-    except queue.Full:
+    except asyncio.QueueFull:
         return create_error_response(429, "queue_full", "save_frame", f"해당 라즈베리 파이 기준 큐 사이즈 초과: {device_uid}")
     except Exception as e:
         return create_error_response(500, "queue_error", "save_frame", f"큐에 이미지 저장 실패: {str(e)}")
