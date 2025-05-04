@@ -21,11 +21,11 @@ class TimedQueue:
         for item in items:
             await self.queue.put(item)
 
-    async def put(self, item: Tuple[str, Image.Image]):
+    async def put(self, item: Tuple[int, Image.Image]):
         await self._remove_expired()
         timestamped_item = (item[0], item[1], datetime.utcnow())
         await self.queue.put(timestamped_item)
 
-    async def get(self) -> Tuple[str, Image.Image]:
+    async def get(self) -> Tuple[int, Image.Image]:
         frame_idx, image, _ = await self.queue.get()
         return frame_idx, image

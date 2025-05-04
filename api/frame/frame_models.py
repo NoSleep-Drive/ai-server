@@ -2,5 +2,5 @@ from pydantic import BaseModel
 
 class FrameRequest(BaseModel):
     deviceUid: str
-    frameIdx: str
+    frameIdx: int
     driverFrame: str
