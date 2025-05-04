@@ -5,7 +5,6 @@ from typing import Tuple, List
 
 class TimedQueue:
     def __init__(self, maxsize=48, window_seconds=2, clean_interval=1):
-        self.queue = asyncio.Queue(maxsize=maxsize)
         self.window_seconds = window_seconds
         self.clean_interval = clean_interval
         self._items: List[Tuple[int, Image.Image, datetime]] = []
