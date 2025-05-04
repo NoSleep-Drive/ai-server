@@ -5,6 +5,7 @@ from typing import Tuple, List
 
 class TimedQueue:
     def __init__(self, maxsize=48, window_seconds=2, clean_interval=1):
+        self.maxsize = maxsize
         self.window_seconds = window_seconds
         self.clean_interval = clean_interval
         self._items: List[Tuple[int, Image.Image, datetime]] = []
@@ -23,7 +24,7 @@ class TimedQueue:
 
     async def put(self, item: Tuple[int, Image.Image]):
         async with self._lock:
-            if len(self._items) >= self.queue.maxsize:
+            if len(self._items) >= self.maxsize:
                 raise asyncio.QueueFull("TimedQueue full 상황")
             timestamped_item = (item[0], item[1], datetime.utcnow())
             self._items.append(timestamped_item)
