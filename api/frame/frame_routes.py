@@ -27,6 +27,7 @@ async def save_frame(data: FrameRequest):
     try:
         image = decode_base64_image(frame_data)
     except ErrorForm as e:
+        logger.error(f"error_code:{e.code}, {e.message}, save_frame, {e.detail_message}")
         return create_error_response(e.code, e.message, "save_frame", e.detail_message)
 
     if device_uid not in uid_queues:
