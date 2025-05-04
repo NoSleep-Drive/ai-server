@@ -3,7 +3,6 @@ import uuid
 from starlette.concurrency import iterate_in_threadpool
 
 from fastapi import Request, Response
-from starlette.responses import StreamingResponse
 from utils.helper import get_middleware_logger, set_request_uuid
 
 middle_logger = get_middleware_logger()
