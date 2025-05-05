@@ -26,7 +26,7 @@ class TimedQueue:
             self._items.append((item[0], item[1], now))
             self._condition.notify()
 
-    async def get(self) -> Tuple[int, Image.Image]:
+    async def get_one(self) -> Tuple[int, Image.Image]:
         async with self._condition:
             while True:
                 now = datetime.utcnow()
@@ -37,6 +37,13 @@ class TimedQueue:
                     return frame_idx, image
 
                 await self._condition.wait()
+
+    async def get_all(self) -> list[Tuple[int, Image.Image]]:
+        async with self._condition:
+            now = datetime.utcnow()
+            self._purge_expired(now)
+
+            return [(idx, img) for idx, img, _ in self._items]
 
     def qsize(self) -> int:
         now = datetime.utcnow()
