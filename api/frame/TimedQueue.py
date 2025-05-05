@@ -1,46 +1,43 @@
-import asyncio
+from collections import deque
 from datetime import datetime
+from typing import Tuple, Deque
+import asyncio
 from PIL import Image
-from typing import Tuple, List
 
 class TimedQueue:
-    def __init__(self, maxsize=48, window_seconds=2, clean_interval=1):
+    def __init__(self, maxsize=48, window_seconds=2):
         self.maxsize = maxsize
         self.window_seconds = window_seconds
-        self.clean_interval = clean_interval
-        self._items: List[Tuple[int, Image.Image, datetime]] = []
+        self._items: Deque[Tuple[int, Image.Image, datetime]] = deque()
         self._lock = asyncio.Lock()
-        self._cleaner_task = asyncio.create_task(self._clean_expired_items())
 
-    async def _clean_expired_items(self):
-        while True:
-            await asyncio.sleep(self.clean_interval)
-            async with self._lock:
-                now = datetime.utcnow()
-                self._items = [
-                    item for item in self._items
-                    if (now - item[2]).total_seconds() < self.window_seconds
-                ]
+    def _purge_expired(self, now: datetime):
+        while self._items and (now - self._items[0][2]).total_seconds() >= self.window_seconds:
+            self._items.popleft()
 
     async def put(self, item: Tuple[int, Image.Image]):
+        now = datetime.utcnow()
         async with self._lock:
+            self._purge_expired(now)
+
             if len(self._items) >= self.maxsize:
                 raise asyncio.QueueFull("TimedQueue full 상황")
-            timestamped_item = (item[0], item[1], datetime.utcnow())
-            self._items.append(timestamped_item)
+
+            self._items.append((item[0], item[1], now))
 
     async def get(self) -> Tuple[int, Image.Image]:
         while True:
+            now = datetime.utcnow()
             async with self._lock:
-                now = datetime.utcnow()
-                self._items = [
-                    item for item in self._items
-                    if (now - item[2]).total_seconds() < self.window_seconds
-                ]
+                self._purge_expired(now)
+
                 if self._items:
-                    item = self._items.pop(0)
-                    return item[0], item[1]
-            await asyncio.sleep(0.1)
+                    frame_idx, image, _ = self._items.popleft()
+                    return frame_idx, image
+
+            await asyncio.sleep(0.05)
 
     def qsize(self) -> int:
+        now = datetime.utcnow()
+        self._purge_expired(now)
         return len(self._items)
