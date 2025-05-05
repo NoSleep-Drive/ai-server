@@ -51,6 +51,7 @@ def decode_base64_image(base64_str: str) -> Image.Image:
             base64_str = base64_str.split(',')[1]
         image_data = base64.b64decode(base64_str)
         image = Image.open(BytesIO(image_data))
+        image.load()
         return image
     except base64.binascii.Error as e:
         raise ErrorForm(422, "invalid_base64", f"Base64 디코딩 실패: {str(e)}")
