@@ -99,3 +99,4 @@ venv.bak/
 
 # log
 ./log
+./tests/log
