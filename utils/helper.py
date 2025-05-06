@@ -2,6 +2,7 @@ import os, logging
 from datetime import datetime
 import logging.config
 import contextvars
+from fastapi.responses import JSONResponse
 
 request_uuid = contextvars.ContextVar("request_uuid", default=None)
 
@@ -95,15 +96,18 @@ def get_middleware_logger() -> logging.Logger:
 
 
 def create_error_response(code, message, method, detail_message):
-    return {
-        "success": False,
-        "error": {
-            "code": code,
-            "message": message,
-            "method": method,
-            "detail_message": detail_message
+    return JSONResponse(
+        status_code=code,
+        content={
+            "success": False,
+            "error": {
+                "code": code,
+                "message": message,
+                "method": method,
+                "detail_message": detail_message
+            }
         }
-    }
+    )
 
 
 def set_request_uuid(uuid: str):
