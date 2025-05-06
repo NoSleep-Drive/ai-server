@@ -96,3 +96,6 @@ venv.bak/
 .mypy_cache/
 
 .idea/*
+
+# log
+./log
