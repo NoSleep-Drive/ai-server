@@ -9,8 +9,6 @@ import cv2
 import numpy as np
 from datetime import datetime
 
-# from main import model
-# from model_loader import model
 router = APIRouter()
 logger = get_logger(__name__)
 
