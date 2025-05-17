@@ -13,7 +13,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from utils.logging_middleware import log_request
 from utils.exception_handlers import validation_exception_handler,http_exception_handler,generic_exception_handler
 
-import tensorflow as tf
+from model_loader import load_model
 
 logger = get_logger(__name__)
 app = FastAPI()
@@ -30,15 +30,9 @@ model = None
 
 
 @app.on_event("startup")
-def load_model():
+def startup_event():
     global model
-    model_path = "./models/team12.h5"
-
-    if not os.path.exists(model_path):
-        raise FileNotFoundError(f"해당 경로에서 모델을 찾을 수 없음 {model_path}")
-
-    model = tf.keras.models.load_model(model_path)
-    logger.info("모델 로드 성공")
+    model = load_model()
 
 def main():
     import uvicorn

@@ -18,7 +18,7 @@ class TimedQueue:
     async def put(self, item: Tuple[int, Image.Image]):
         now = datetime.utcnow()
         async with self._condition:
-            self._purge_expired(now)
+            # self._purge_expired(now)
 
             if len(self._items) >= self.maxsize:
                 raise asyncio.QueueFull("TimedQueue full 상황")
@@ -30,7 +30,7 @@ class TimedQueue:
         async with self._condition:
             while True:
                 now = datetime.utcnow()
-                self._purge_expired(now)
+                # self._purge_expired(now)
 
                 if self._items:
                     frame_idx, image, _ = self._items.popleft()
@@ -41,11 +41,11 @@ class TimedQueue:
     async def get_all(self) -> list[Tuple[int, Image.Image]]:
         async with self._condition:
             now = datetime.utcnow()
-            self._purge_expired(now)
+            # self._purge_expired(now)
 
             return [(idx, img) for idx, img, _ in self._items]
 
     def qsize(self) -> int:
         now = datetime.utcnow()
-        self._purge_expired(now)
+        # self._purge_expired(now)
         return len(self._items)
