@@ -7,7 +7,7 @@ from api.frame.frame_routes import uid_queues, get_or_create_queue
 
 import cv2
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -22,13 +22,11 @@ async def get_diagnosis_result(request: Request, device_uid: str = Query(..., al
 
     try:
         frames = await get_frames_from_queue(device_uid)
-        if not frames:
-            raise ErrorForm(404, "no_frames", "get_diagnosis_result(프레임 조회)")
 
         input_array = preprocess_input_data(frames)
     except ErrorForm as e:
-        logger.error(f"error_code:{e.code}, {e.message}, get_diagnosis_result(입력 데이터 처리), {e.detail_message}")
-        return create_error_response(e.code, e.message, "get_diagnosis_result(입력 데이터 처리)", e.detail_message)
+        logger.error(f"error_code:{e.code}, {e.message}, get_diagnosis_result(큐에서 이미지 가져올 때), {e.detail_message}")
+        return create_error_response(e.code, e.message, "get_diagnosis_result(큐에서 이미지 가져올 때)", e.detail_message)
 
     try:
         predicted_class  = model.predict(input_array)
@@ -36,12 +34,13 @@ async def get_diagnosis_result(request: Request, device_uid: str = Query(..., al
 
         predicted_class_int = (predicted_class.flatten()[0] > 0.5).astype(int)
         logger.info(f"모델 결과 반환 값 (이진): {predicted_class_int}")
+
+        detection_time = datetime.now(timezone.utc).isoformat()
     except Exception as e:
         logger.error(f"error_code:500, prediction_error, get_diagnosis_result(모델 예측), {str(e)}")
         return create_error_response(500, "prediction_error", "get_diagnosis_result(모델 예측)", f"모델 예측 중 오류 발생: {str(e)}")
 
     predicted_result = True if predicted_class_int == 0 else False
-    detection_time = datetime.utcnow().isoformat() + "Z"
     logger.info(f"라즈베리 파이 UID: {device_uid} - 진단 결과: {predicted_result}")
     return JSONResponse(
         status_code=200,
@@ -56,13 +55,16 @@ async def get_diagnosis_result(request: Request, device_uid: str = Query(..., al
 
 async def get_frames_from_queue(device_uid: str):
     if device_uid not in uid_queues:
-        raise ErrorForm(404, "queue_not_found", "get_frames_from_queue")
+        raise ErrorForm(404, "queue_not_found", "해당 라즈베리 파이 UID에 대한 큐가 없습니다.")
 
     queue: TimedQueue = get_or_create_queue(device_uid)
     frames = await queue.get_all()
 
     if not frames:
-        raise ErrorForm(404, "no_frames", "get_frames_from_queue")
+        raise ErrorForm(404, "no_frames", "큐에 저장된 이미지 프레임이 없습니다.")
+
+    if queue.qsize() < 43:
+        raise ErrorForm(400, "insufficient_frames", "진단에 쓰일 이미지 프레임 수가 충분하지 않습니다.")
 
     frames.sort(key=lambda x: x[0])
     return [img for _, img in frames]
