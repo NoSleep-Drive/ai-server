@@ -72,16 +72,32 @@ async def get_frames_from_queue(device_uid: str):
 
 def preprocess_input_data(frames: list) -> np.ndarray:
     try:
-        resized_frames = [cv2.resize(np.array(frame), (145, 145)) for frame in frames]
-
         frame_count = 48
-        if len(resized_frames) < frame_count:
-            padding_frames = [np.zeros((145, 145, 3))] * (frame_count - len(resized_frames))
-            resized_frames.extend(padding_frames)
-        else:
-            resized_frames = resized_frames[:frame_count]
 
-        image_array = [frame / 255.0 for frame in resized_frames]
+        interpolated_frames = []
+        for i in range(len(frames) - 1):
+            current_frame = np.array(frames[i])
+            next_frame = np.array(frames[i + 1])
+            interpolated_frames.append(current_frame)
+
+            current_idx = i
+            next_idx = i + 1
+
+            if next_idx - current_idx > 1:
+                for missing_idx in range(current_idx + 1, next_idx):
+                    alpha = (missing_idx - current_idx) / (next_idx - current_idx)
+                    interpolated_frame = cv2.addWeighted(current_frame, 1 - alpha, next_frame, alpha, 0)
+                    interpolated_frames.append(interpolated_frame)
+
+        interpolated_frames.append(np.array(frames[-1]))
+
+        if len(interpolated_frames) < frame_count:
+            padding_frames = [np.zeros((145, 145, 3))] * (frame_count - len(interpolated_frames))
+            interpolated_frames.extend(padding_frames)
+        else:
+            interpolated_frames = interpolated_frames[:frame_count]
+
+        image_array = [cv2.resize(frame, (145, 145)) / 255.0 for frame in interpolated_frames]
         input_array = np.array(image_array)
         input_array = np.expand_dims(input_array, axis=0)  # (1, 48, 145, 145, 3)
 
