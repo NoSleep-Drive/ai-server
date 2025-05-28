@@ -49,3 +49,18 @@ async def test_model_not_loaded():
     assert resp.status_code == 500
     data = resp.json()
     assert data["error"]["message"] == "model_not_loaded"
+
+@pytest.mark.asyncio
+async def test_queue_not_found():
+    app.state.model = MagicMock()
+    device_uid = "nonexistent_uid"
+
+    if device_uid in uid_queues:
+        del uid_queues[device_uid]
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.get("/ai/diagnosis/drowsiness", params={"deviceUid": device_uid})
+
+    assert resp.status_code == 404
+    assert resp.json()["error"]["message"] == "queue_not_found"
