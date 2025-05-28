@@ -1,0 +1,142 @@
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+import pytest
+from httpx import AsyncClient, ASGITransport
+from unittest.mock import AsyncMock, MagicMock
+from main import app
+from api.frame.frame_routes import uid_queues
+from api.frame.TimedQueue import TimedQueue
+import numpy as np
+from PIL import Image
+
+
+@pytest.mark.asyncio
+async def test_get_diagnosis_success():
+    device_uid = "uid_success"
+    queue = TimedQueue(maxsize=48, window_seconds=2)
+
+    for i in range(48):
+        img = Image.new("RGB", (145, 145), color="blue") # 임의 이미지 데이터 세팅
+        await queue.put((i, img))
+    uid_queues[device_uid] = queue
+
+    mock_model = MagicMock()
+    mock_model.predict.return_value = np.array([[0.3]])
+
+    app.state.model = mock_model
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.get("/ai/diagnosis/drowsiness", params={"deviceUid": device_uid})
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    assert data["isDrowsinessDrive"] is True # 0.5 이하는 True 반환
+    assert "detectionTime" in data
+
+@pytest.mark.asyncio
+async def test_model_not_loaded():
+    app.state.model = None
+    device_uid = "uid_any"
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.get("/ai/diagnosis/drowsiness", params={"deviceUid": device_uid})
+
+    assert resp.status_code == 500
+    data = resp.json()
+    assert data["error"]["message"] == "model_not_loaded"
+
+@pytest.mark.asyncio
+async def test_queue_not_found():
+    app.state.model = MagicMock()
+    device_uid = "nonexistent_uid"
+
+    if device_uid in uid_queues:
+        del uid_queues[device_uid]
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.get("/ai/diagnosis/drowsiness", params={"deviceUid": device_uid})
+
+    assert resp.status_code == 404
+    assert resp.json()["error"]["message"] == "queue_not_found"
+
+@pytest.mark.asyncio
+async def test_no_frames_in_queue():
+    device_uid = "uid_empty"
+    queue = TimedQueue(maxsize=48, window_seconds=2)
+    uid_queues[device_uid] = queue
+
+    app.state.model = MagicMock()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.get("/ai/diagnosis/drowsiness", params={"deviceUid": device_uid})
+
+    assert resp.status_code == 404
+    assert resp.json()["error"]["message"] == "no_frames"
+
+@pytest.mark.asyncio
+async def test_insufficient_frames():
+    device_uid = "uid_insufficient"
+    queue = TimedQueue(maxsize=48, window_seconds=2)
+
+    for i in range(10):  # 10 < 43
+        img = Image.new("RGB", (145, 145), color="green")
+        await queue.put((i, img))
+    uid_queues[device_uid] = queue
+
+    app.state.model = MagicMock()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.get("/ai/diagnosis/drowsiness", params={"deviceUid": device_uid})
+
+    assert resp.status_code == 400
+    assert resp.json()["error"]["message"] == "insufficient_frames"
+
+@pytest.mark.asyncio
+async def test_preprocessing_error():
+    device_uid = "uid_preproc_error"
+    queue = TimedQueue(maxsize=48, window_seconds=2)
+
+    # 넣는 프레임을 numpy 배열로 변환할 수 없는 타입으로 지정
+    # preprocess_input_data 함수 테스트
+    for i in range(48):
+        await queue.put((i, "not-an-image-object"))
+    uid_queues[device_uid] = queue
+
+    app.state.model = MagicMock()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.get("/ai/diagnosis/drowsiness", params={"deviceUid": device_uid})
+
+    assert resp.status_code == 422
+    assert resp.json()["error"]["message"] == "invalid_data"
+
+@pytest.mark.asyncio
+async def test_prediction_error(monkeypatch):
+    device_uid = "uid_predict_error"
+    queue = TimedQueue(maxsize=48, window_seconds=2)
+
+    for i in range(48):
+        img = Image.new("RGB", (145, 145), color="black")
+        await queue.put((i, img))
+    uid_queues[device_uid] = queue
+
+    mock_model = MagicMock()
+    mock_model.predict.side_effect = Exception("예측 실패 발생")
+
+    monkeypatch.setattr(app.state, "model", mock_model)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.get("/ai/diagnosis/drowsiness", params={"deviceUid": device_uid})
+
+    assert resp.status_code == 500
+    assert resp.json()["error"]["message"] == "prediction_error"
