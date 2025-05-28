@@ -120,7 +120,7 @@ async def test_preprocessing_error():
     assert resp.json()["error"]["message"] == "invalid_data"
 
 @pytest.mark.asyncio
-async def test_prediction_error():
+async def test_prediction_error(monkeypatch):
     device_uid = "uid_predict_error"
     queue = TimedQueue(maxsize=48, window_seconds=2)
 
@@ -131,7 +131,8 @@ async def test_prediction_error():
 
     mock_model = MagicMock()
     mock_model.predict.side_effect = Exception("예측 실패 발생")
-    app.state.model = mock_model
+
+    monkeypatch.setattr(app.state, "model", mock_model)
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -139,4 +140,3 @@ async def test_prediction_error():
 
     assert resp.status_code == 500
     assert resp.json()["error"]["message"] == "prediction_error"
-
