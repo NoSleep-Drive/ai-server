@@ -13,7 +13,7 @@ from PIL import Image
 
 
 @pytest.mark.asyncio
-async def test_get_diagnosis_success(monkeypatch):
+async def test_get_diagnosis_success():
     device_uid = "uid_success"
     queue = TimedQueue(maxsize=48, window_seconds=2)
 
@@ -36,3 +36,16 @@ async def test_get_diagnosis_success(monkeypatch):
     assert data["success"] is True
     assert data["isDrowsinessDrive"] is True # 0.5 이하는 True 반환
     assert "detectionTime" in data
+
+@pytest.mark.asyncio
+async def test_model_not_loaded():
+    app.state.model = None
+    device_uid = "uid_any"
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.get("/ai/diagnosis/drowsiness", params={"deviceUid": device_uid})
+
+    assert resp.status_code == 500
+    data = resp.json()
+    assert data["error"]["message"] == "model_not_loaded"
