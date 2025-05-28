@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 router = APIRouter()
 logger = get_logger(__name__)
 
-@router.get("/diagnosis/drowiness")
+@router.get("/diagnosis/drowsiness")
 async def get_diagnosis_result(request: Request, device_uid: str = Query(..., alias="deviceUid")):
     model = request.app.state.model
 
