@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 uid_queues: Dict[str, TimedQueue] = {}
 
 
-@router.post("/api/save/frame")
+@router.post("/save/frame")
 async def save_frame(data: FrameRequest):
     device_uid = data.deviceUid
     frame_idx = data.frameIdx

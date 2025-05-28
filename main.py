@@ -5,7 +5,8 @@ from concurrent.futures import ThreadPoolExecutor
 module_path = Path(__file__).parent
 sys.path.append(str(module_path))
 
-from fastapi import FastAPI
+from typing import Dict, Any
+from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from api.frame.frame_routes import router as frame_router
 from api.diagnosis.diagnosis_routes import router as diagnosis_router
@@ -21,8 +22,8 @@ logger = get_logger(__name__)
 app = FastAPI()
 app.add_middleware(BaseHTTPMiddleware, dispatch=log_request)
 
-app.include_router(frame_router, tags=["진단용 이미지 저장"])
-app.include_router(diagnosis_router, tags=["진단 결과 조회"])
+app.include_router(frame_router, prefix="/ai", tags=["진단용 이미지 저장"])
+app.include_router(diagnosis_router, prefix="/ai", tags=["진단 결과 조회"])
 
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
@@ -37,6 +38,13 @@ async def load_model_async():
 @app.on_event("startup")
 async def startup_event():
     app.state.model = await load_model_async()
+
+@app.get("/ai/health")
+def health_check() -> Dict[str, Any]:
+    model = getattr(app.state, "model", None)
+    if model is None:
+        raise HTTPException(status_code=500, detail="모델이 로드되지 않았습니다.")
+    return {"status": "ok", "model_loaded": True}
 
 def main():
     import uvicorn

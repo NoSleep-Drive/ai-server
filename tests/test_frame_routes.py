@@ -21,7 +21,7 @@ async def test_save_frame_success_and_check_queue(): # 200 테스트
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        response = await ac.post("/api/save/frame", json=payload)
+        response = await ac.post("/ai/save/frame", json=payload)
 
     assert response.status_code == 200
     assert response.json()["success"] is True
@@ -40,7 +40,7 @@ async def test_invalid_base64_raises_custom_error(): # base64가 아닐 경우 �
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        response = await ac.post("/api/save/frame", json=payload)
+        response = await ac.post("/ai/save/frame", json=payload)
 
     assert response.status_code == 422
     json_resp = response.json()
@@ -60,7 +60,7 @@ async def test_invalid_image_raises_custom_error(): # 유효한 base64지만 이
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        response = await ac.post("/api/save/frame", json=payload)
+        response = await ac.post("/ai/save/frame", json=payload)
 
     assert response.status_code == 422
     json_resp = response.json()
@@ -87,7 +87,7 @@ async def test_queue_full_raises_custom_error(monkeypatch): # 강제로 큐를 �
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        resp = await ac.post("/api/save/frame", json=payload)
+        resp = await ac.post("/ai/save/frame", json=payload)
 
     json_resp = resp.json()
     assert resp.status_code == 429
