@@ -98,3 +98,24 @@ async def test_insufficient_frames():
 
     assert resp.status_code == 400
     assert resp.json()["error"]["message"] == "insufficient_frames"
+
+@pytest.mark.asyncio
+async def test_preprocessing_error():
+    device_uid = "uid_preproc_error"
+    queue = TimedQueue(maxsize=48, window_seconds=2)
+
+    # 넣는 프레임을 numpy 배열로 변환할 수 없는 타입으로 지정
+    # preprocess_input_data 함수 테스트
+    for i in range(48):
+        await queue.put((i, "not-an-image-object"))
+    uid_queues[device_uid] = queue
+
+    app.state.model = MagicMock()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.get("/ai/diagnosis/drowsiness", params={"deviceUid": device_uid})
+
+    assert resp.status_code == 422
+    assert resp.json()["error"]["message"] == "invalid_data"
+
