@@ -64,3 +64,18 @@ async def test_queue_not_found():
 
     assert resp.status_code == 404
     assert resp.json()["error"]["message"] == "queue_not_found"
+
+@pytest.mark.asyncio
+async def test_no_frames_in_queue():
+    device_uid = "uid_empty"
+    queue = TimedQueue(maxsize=48, window_seconds=2)
+    uid_queues[device_uid] = queue
+
+    app.state.model = MagicMock()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.get("/ai/diagnosis/drowsiness", params={"deviceUid": device_uid})
+
+    assert resp.status_code == 404
+    assert resp.json()["error"]["message"] == "no_frames"
