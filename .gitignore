@@ -100,3 +100,6 @@ venv.bak/
 # log
 ./log
 ./tests/log
+
+# ssh private key
+no-sleep-drive-server
