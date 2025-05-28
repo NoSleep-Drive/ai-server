@@ -6,6 +6,7 @@ module_path = Path(__file__).parent
 sys.path.append(str(module_path))
 
 from fastapi import FastAPI
+from fastapi import HTTPException
 from fastapi.exceptions import RequestValidationError
 from api.frame.frame_routes import router as frame_router
 from api.diagnosis.diagnosis_routes import router as diagnosis_router
@@ -37,6 +38,13 @@ async def load_model_async():
 @app.on_event("startup")
 async def startup_event():
     app.state.model = await load_model_async()
+
+@app.get("/ai/health")
+def health_check():
+    model = getattr(app.state, "model", None)
+    if model is None:
+        raise HTTPException(status_code=500, detail="모델이 로드되지 않았습니다.")
+    return {"status": "ok", "model_loaded": True}
 
 def main():
     import uvicorn
