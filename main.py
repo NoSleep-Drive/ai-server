@@ -5,8 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 module_path = Path(__file__).parent
 sys.path.append(str(module_path))
 
-from fastapi import FastAPI
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from api.frame.frame_routes import router as frame_router
 from api.diagnosis.diagnosis_routes import router as diagnosis_router
