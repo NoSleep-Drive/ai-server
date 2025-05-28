@@ -79,3 +79,22 @@ async def test_no_frames_in_queue():
 
     assert resp.status_code == 404
     assert resp.json()["error"]["message"] == "no_frames"
+
+@pytest.mark.asyncio
+async def test_insufficient_frames():
+    device_uid = "uid_insufficient"
+    queue = TimedQueue(maxsize=48, window_seconds=2)
+
+    for i in range(10):  # 10 < 43
+        img = Image.new("RGB", (145, 145), color="green")
+        await queue.put((i, img))
+    uid_queues[device_uid] = queue
+
+    app.state.model = MagicMock()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.get("/ai/diagnosis/drowsiness", params={"deviceUid": device_uid})
+
+    assert resp.status_code == 400
+    assert resp.json()["error"]["message"] == "insufficient_frames"
