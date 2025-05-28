@@ -119,3 +119,24 @@ async def test_preprocessing_error():
     assert resp.status_code == 422
     assert resp.json()["error"]["message"] == "invalid_data"
 
+@pytest.mark.asyncio
+async def test_prediction_error():
+    device_uid = "uid_predict_error"
+    queue = TimedQueue(maxsize=48, window_seconds=2)
+
+    for i in range(48):
+        img = Image.new("RGB", (145, 145), color="black")
+        await queue.put((i, img))
+    uid_queues[device_uid] = queue
+
+    mock_model = MagicMock()
+    mock_model.predict.side_effect = Exception("예측 실패 발생")
+    app.state.model = mock_model
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.get("/ai/diagnosis/drowsiness", params={"deviceUid": device_uid})
+
+    assert resp.status_code == 500
+    assert resp.json()["error"]["message"] == "prediction_error"
+
