@@ -1,0 +1,68 @@
+name: Deploy FastAPI AI Server to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    environment: prod
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v3
+
+    - name: EC2에 AI Server 디렉터리 생성
+      uses: appleboy/ssh-action@v0.1.7
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.DEPLOY_SSH_KEY }}
+        script: |
+          sudo mkdir -p /home/noSleepDrive/app/ai
+          sudo chown -R ${{ secrets.EC2_USER }}:${{ secrets.EC2_USER }} /home/noSleepDrive/app
+
+
+    - name: EC2에 소스 코드 업로드
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.DEPLOY_SSH_KEY }}
+        source: "."
+        target: "/home/noSleepDrive/app/ai"
+
+    - name: EC2 배포 환경 python 가상 환경 세팅
+      uses: appleboy/ssh-action@v0.1.7
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.DEPLOY_SSH_KEY }}
+        script: |
+          set -e
+          sudo apt update
+          sudo apt install -y python3 python3-venv python3-pip
+          mkdir -p /home/noSleepDrive
+          cd /home/noSleepDrive
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          if [ -f "app/ai/requirements.txt" ]; then
+            pip install -r app/ai/requirements.txt
+          else
+            pip install fastapi uvicorn
+          fi
+
+    - name: systemd service Reload && enable 및 FastAPI 재시작
+      uses: appleboy/ssh-action@v0.1.7
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.DEPLOY_SSH_KEY }}
+        script: |
+          sudo systemctl daemon-reload
+          sudo systemctl enable fastapi.service
+          sudo systemctl restart fastapi.service
+
