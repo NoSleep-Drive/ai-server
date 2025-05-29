@@ -22,8 +22,8 @@ jobs:
         username: ${{ secrets.EC2_USER }}
         key: ${{ secrets.DEPLOY_SSH_KEY }}
         script: |
-          mkdir -p /home/noSleepDrive/app/ai
-          chown -R ${{ secrets.EC2_USER }}:${{ secrets.EC2_USER }} /home/noSleepDrive/app
+          sudo mkdir -p /home/noSleepDrive/app/ai
+          sudo chown -R ${{ secrets.EC2_USER }}:${{ secrets.EC2_USER }} /home/noSleepDrive/app
 
 
     - name: EC2에 소스 코드 업로드
