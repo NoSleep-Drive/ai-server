@@ -15,45 +15,55 @@ jobs:
     - name: Checkout source
       uses: actions/checkout@v3
 
-    - name: SSH 설정
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+    - name: EC2에 AI Server 디렉터리 생성
+      uses: appleboy/ssh-action@v0.1.7
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.DEPLOY_SSH_KEY }}
+        script: |
+          mkdir -p /home/noSleepDrive/app/ai
+          chown -R ${{ secrets.EC2_USER }}:${{ secrets.EC2_USER }} /home/noSleepDrive/app
 
-    - name: EC2 배포 환경 python 세팅
-      run: |
-        ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+
+    - name: EC2에 소스 코드 업로드
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.DEPLOY_SSH_KEY }}
+        source: "."
+        target: "/home/noSleepDrive/app/ai"
+
+    - name: EC2 배포 환경 python 가상 환경 세팅
+      uses: appleboy/ssh-action@v0.1.7
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.DEPLOY_SSH_KEY }}
+        script: |
           set -e
           sudo apt update
           sudo apt install -y python3 python3-venv python3-pip
           mkdir -p /home/noSleepDrive
-        EOF
-
-    - name: 소스 코드 업로드
-      run: |
-        scp -o StrictHostKeyChecking=no -r . ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/noSleepDrive
-
-    - name: 가상환경 세팅 및 필요한 라이브러리 requirements 설치
-      run: |
-        ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
           cd /home/noSleepDrive
           python3 -m venv .venv
           source .venv/bin/activate
           pip install --upgrade pip
-          if [ -f "requirements.txt" ]; then
+          if [ -f "app/ai/requirements.txt" ]; then
             pip install -r app/ai/requirements.txt
           else
             pip install fastapi uvicorn
           fi
-        EOF
 
     - name: systemd service Reload && enable 및 FastAPI 재시작
-      run: |
-        ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+      uses: appleboy/ssh-action@v0.1.7
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.DEPLOY_SSH_KEY }}
+        script: |
           sudo systemctl daemon-reload
           sudo systemctl enable fastapi.service
           sudo systemctl restart fastapi.service
-        EOF
 
