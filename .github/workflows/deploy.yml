@@ -1,4 +1,4 @@
-name: Deploy FastAPI Server to EC2
+name: Deploy FastAPI AI Server to EC2
 
 on:
   push:
