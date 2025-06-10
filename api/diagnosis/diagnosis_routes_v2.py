@@ -38,6 +38,7 @@ async def get_diagnosis_result_v2(request: Request, device_uid: str = Query(...,
 
             prediction = model.predict(input_tensor)
             predicted_value = prediction[0][0] if prediction.ndim > 1 else prediction
+            logger.info(f"모델 예측값: {predicted_value}")
 
             if predicted_value >= DROWSINESS_THRESHOLD:
                 is_drowsiness_drive = False
