@@ -82,7 +82,6 @@ def preprocess_input_image(frames: list) -> np.ndarray:
             image = image / 255.0
             processed_images.append(image)
 
-        input_array = np.array(processed_images)  # (N, 145, 145, 3)
-        return input_array
+        return np.array(processed_images)  # (N, 145, 145, 3)
     except Exception as e:
         raise ErrorForm(422, "invalid_data", f"입력 이미지들을 numpy 배열로 변환 중 오류: {str(e)}")
