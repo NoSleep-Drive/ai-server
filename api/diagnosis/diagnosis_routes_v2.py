@@ -15,7 +15,7 @@ from api.frame.frame_routes import uid_queues, get_or_create_queue
 router = APIRouter()
 logger = get_logger(__name__)
 
-@router.get("/diagnosis/drowsiness/v2")
+@router.get("/diagnosis/drowsiness")
 async def get_diagnosis_result_v2(request: Request, device_uid: str = Query(..., alias="deviceUid")):
     model = request.app.state.model
 
