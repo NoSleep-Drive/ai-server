@@ -1,3 +1,5 @@
+DROWSINESS_THRESHOLD = 0.00016
+
 from datetime import datetime, timezone
 
 import cv2
@@ -34,9 +36,10 @@ async def get_diagnosis_result_v2(request: Request, device_uid: str = Query(...,
         for img in input_array:  # img.shape == (145, 145, 3)
             input_tensor = np.expand_dims(img, axis=0)  # shape == (1, 145, 145, 3)
 
-            predicted_class  = model.predict(input_tensor)
+            prediction = model.predict(input_tensor)
+            predicted_value = prediction[0][0] if prediction.ndim > 1 else prediction
 
-            if predicted_class >= 0.00016:
+            if predicted_value >= DROWSINESS_THRESHOLD:
                 is_drowsiness_drive = False
                 break
 
