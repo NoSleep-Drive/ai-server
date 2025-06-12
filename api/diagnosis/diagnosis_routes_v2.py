@@ -82,6 +82,10 @@ def preprocess_input_image(frames: list) -> np.ndarray:
         processed_images = []
         for frame in frames:
             image = np.array(frame)
+
+            if image.shape[-1] == 3:
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
             image = cv2.resize(image, (145, 145))
             image = image / 255.0
             processed_images.append(image)
