@@ -1,6 +1,6 @@
 from collections import deque
 from datetime import datetime
-from typing import Tuple, Deque
+from typing import Tuple, Deque, List
 import asyncio
 from PIL import Image
 
@@ -38,7 +38,7 @@ class TimedQueue:
 
                 await self._condition.wait()
 
-    async def get_all(self) -> list[Tuple[int, Image.Image]]:
+    async def get_all(self) -> List[Tuple[int, Image.Image]]:
         async with self._condition:
             now = datetime.utcnow()
             self._purge_expired(now)
