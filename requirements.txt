@@ -8,4 +8,3 @@ aiohttp
 pytest
 pytest-asyncio
 httpx
-tensorflow
