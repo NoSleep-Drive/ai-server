@@ -27,7 +27,7 @@ jobs:
         docker push ${{ secrets.DOCKER_USERNAME }}/fastapi-ai:latest
 
 
-    - name: KT Cloud 서버에서 pull & 컨테이너 재시작
+    - name: KT Cloud 서버에서 pull & 컨테이너 재실행
       uses: appleboy/ssh-action@v0.1.7
       with:
         host: ${{ secrets.KT_CLOUD_HOST }}
