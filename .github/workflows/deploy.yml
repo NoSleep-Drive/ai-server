@@ -1,9 +1,10 @@
-name: Deploy FastAPI AI Server to EC2
+name: Deploy FastAPI AI Server to KT CLOUD
 
 on:
   push:
     branches:
       - main
+      - kt-cloud-deploy
 
 jobs:
   deploy:
@@ -14,55 +15,30 @@ jobs:
     - name: Checkout source
       uses: actions/checkout@v3
 
-    - name: EC2에 AI Server 디렉터리 생성
+    - name: 도커 허브 로그인
+      uses: docker/login-action@v2
+      with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: 도커 이미지 build 및 push
+      run: |
+        docker build -t ${{ secrets.DOCKER_USERNAME }}/fastapi-ai:latest .
+        docker push ${{ secrets.DOCKER_USERNAME }}/fastapi-ai:latest
+
+
+    - name: KT Cloud 서버에서 pull & 컨테이너 재실행
       uses: appleboy/ssh-action@v0.1.7
       with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USER }}
-        key: ${{ secrets.DEPLOY_SSH_KEY }}
-        script: |
-          sudo mkdir -p /home/noSleepDrive/app/ai
-          sudo chown -R ${{ secrets.EC2_USER }}:${{ secrets.EC2_USER }} /home/noSleepDrive/app
-
-
-    - name: EC2에 소스 코드 업로드
-      uses: appleboy/scp-action@v0.1.4
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USER }}
-        key: ${{ secrets.DEPLOY_SSH_KEY }}
-        source: "."
-        target: "/home/noSleepDrive/app/ai"
-
-    - name: EC2 배포 환경 python 가상 환경 세팅
-      uses: appleboy/ssh-action@v0.1.7
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USER }}
-        key: ${{ secrets.DEPLOY_SSH_KEY }}
+        host: ${{ secrets.KT_CLOUD_HOST }}
+        username: ${{ secrets.KT_CLOUD_USER }}
+        key: ${{ secrets.KT_CLOUD_DEPLOY_SSH_KEY }}
         script: |
           set -e
-          sudo apt update
-          sudo apt install -y python3 python3-venv python3-pip
-          mkdir -p /home/noSleepDrive
-          cd /home/noSleepDrive
-          python3 -m venv .venv
-          source .venv/bin/activate
-          pip install --upgrade pip
-          if [ -f "app/ai/requirements.txt" ]; then
-            pip install -r app/ai/requirements.txt
-          else
-            pip install fastapi uvicorn
-          fi
-
-    - name: systemd service Reload && enable 및 FastAPI 재시작
-      uses: appleboy/ssh-action@v0.1.7
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USER }}
-        key: ${{ secrets.DEPLOY_SSH_KEY }}
-        script: |
-          sudo systemctl daemon-reload
-          sudo systemctl enable fastapi.service
-          sudo systemctl restart fastapi.service
-
+          docker pull ${{ secrets.DOCKER_USERNAME }}/fastapi-ai:latest
+          docker stop fastapi-ai || true
+          docker rm fastapi-ai || true
+          docker run -d --name fastapi-ai \
+            -p 8000:8000 \
+            --restart=always \
+            ${{ secrets.DOCKER_USERNAME }}/fastapi-ai:latest
