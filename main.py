@@ -14,7 +14,7 @@ from api.diagnosis.diagnosis_routes_v2 import router as diagnosis_router_v2
 from utils.helper import get_logger
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
-from utils.logging_middleware import log_request
+from utils.logging_middleware import log_request, request_uuid_middleware
 from utils.exception_handlers import validation_exception_handler, http_exception_handler, generic_exception_handler
 
 from model_loader import load_model
@@ -22,6 +22,7 @@ from model_loader import load_model
 logger = get_logger(__name__)
 app = FastAPI()
 app.add_middleware(BaseHTTPMiddleware, dispatch=log_request)
+app.middleware("http")(request_uuid_middleware)
 
 app.include_router(frame_router, prefix="/ai", tags=["진단용 이미지 저장"])
 app.include_router(diagnosis_router, prefix="/ai", tags=["진단 결과 조회"])

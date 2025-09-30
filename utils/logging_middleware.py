@@ -9,8 +9,7 @@ middle_logger = get_middleware_logger()
 
 
 async def log_request(request: Request, call_next):
-    uuid_str = str(uuid.uuid4())
-    set_request_uuid(uuid_str)
+    uuid_str = request_uuid_middleware(request, call_next)
 
     start_time = datetime.datetime.utcnow()
 
@@ -48,3 +47,7 @@ async def log_request(request: Request, call_next):
 
     return response
 
+async def request_uuid_middleware(request: Request, call_next):
+    set_request_uuid(str(uuid.uuid4()))
+    response = await call_next(request)
+    return response

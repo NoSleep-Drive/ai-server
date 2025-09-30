@@ -6,9 +6,8 @@ from fastapi.responses import JSONResponse
 
 request_uuid = contextvars.ContextVar("request_uuid", default=None)
 
-log_directory = "log"
-if not os.path.exists(log_directory):
-    os.makedirs(log_directory)
+LOG_DIRECTORY = "log"
+os.makedirs(LOG_DIRECTORY, exist_ok=True)
 
 USE_INFO_LOG = True
 
@@ -20,7 +19,7 @@ class IgnoreInfoFilter(logging.Filter):
 
 def get_log_filename(log_type: str) -> str:
     current_date = datetime.now().strftime("%Y%m%d")
-    return os.path.join(log_directory, f"{log_type}.log_{current_date}")
+    return os.path.join(LOG_DIRECTORY, f"{log_type}.log_{current_date}")
 
 
 class UUIDFormatter(logging.Formatter):
@@ -29,64 +28,58 @@ class UUIDFormatter(logging.Formatter):
         return super().format(record)
 
 
-LOGGING_CONFIG = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "default": {
-            "format": "%(asctime)s - [%(request_uuid)s] - %(name)s - %(levelname)s - %(message)s",
-            "()": UUIDFormatter,
-        },
-    },
-    "filters": {
-        "info_filter": {  # info_filter 필터 등록
-            "()": IgnoreInfoFilter,
-        },
-    },
-    "handlers": {
-        "file_warning": {
-            "class": "logging.FileHandler",
-            "formatter": "default",
-            "filename": get_log_filename("warning"),
-            "level": "WARNING",
-            "encoding": "utf-8",
-        },
-        "file_info": {
-            "class": "logging.FileHandler",
-            "formatter": "default",
-            "filename": get_log_filename("info"),
-            "level": "INFO",
-            "encoding": "utf-8",
-            "filters": ["info_filter"] if not USE_INFO_LOG else [],
-        },
-        "file_middleware": {
-            "class": "logging.FileHandler",
-            "formatter": "default",
-            "filename": get_log_filename("middleware"),
-            "level": "INFO",
-            "encoding": "utf-8",
-        },
-    },
-    "loggers": {
-        "": {
-            "handlers": ["file_warning"] + (["file_info"] if USE_INFO_LOG else []),
-            "level": "DEBUG",
-        },
-        "httpx": {
-            "handlers": ["file_warning"],
-            "level": "WARNING",
-            "propagate": False,
-        },
-        "middleware_logger": {
-            "handlers": ["file_middleware"],
-            "level": "INFO",
-            "propagate": False,
-        }
-    },
-}
+def file_handler_factory(log_type: str, level: str, filters=None) -> dict:
+    return {
+        "class": "logging.FileHandler",
+        "formatter": "default",
+        "filename": get_log_filename(log_type),
+        "level": level,
+        "encoding": "utf-8",
+        "filters": filters or [],
+    }
 
-# 로깅 설정 적용
-logging.config.dictConfig(LOGGING_CONFIG)
+def init_logging():
+    logging_config = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {
+                "format": "%(asctime)s - [%(request_uuid)s] - %(name)s - %(levelname)s - %(message)s",
+                "()": UUIDFormatter,
+            },
+        },
+        "filters": {
+            "info_filter": {
+                "()": IgnoreInfoFilter,
+            },
+        },
+        "handlers": {
+            "file_warning": file_handler_factory("warning", "WARNING"),
+            "file_info": file_handler_factory(
+                "info", "INFO", filters=["info_filter"] if not USE_INFO_LOG else []
+            ),
+            "file_middleware": file_handler_factory("middleware", "INFO"),
+        },
+        "loggers": {
+            "": {
+                "handlers": ["file_warning"] + (["file_info"] if USE_INFO_LOG else []),
+                "level": "DEBUG",
+            },
+            "httpx": {
+                "handlers": ["file_warning"],
+                "level": "WARNING",
+                "propagate": False,
+            },
+            "middleware_logger": {
+                "handlers": ["file_middleware"],
+                "level": "INFO",
+                "propagate": False,
+            },
+        },
+    }
+
+    logging.config.dictConfig(logging_config)
+
 
 def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
@@ -116,3 +109,5 @@ def set_request_uuid(uuid: str):
 
 def get_request_uuid():
     return request_uuid.get()
+
+init_logging()
